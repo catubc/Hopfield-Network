@@ -8,7 +8,10 @@ import sys
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm, trange
 
+
+###############################################
 class hopfield:
     def __init__(self, input_shape):
         self.train_data = []
@@ -23,7 +26,7 @@ class hopfield:
         img_mean = np.mean(img)
         img = np.where(img < img_mean,-1,1)
         train_data = img.flatten()
-        for i in range(train_data.size):
+        for i in trange(train_data.size):
             for j in range(i,train_data.size):
                 if i==j:
                     self.W[i][j] = 0
@@ -31,7 +34,8 @@ class hopfield:
                     w_ij = train_data[i]*train_data[j]
                     self.W[i][j] += w_ij
                     self.W[j][i] += w_ij
-                    
+    
+    #                
     def update(self,state,idx=None):
         if idx==None:
             # state = np.matmul(self.W,state)
@@ -51,6 +55,7 @@ class hopfield:
                 state[idx] = 1
         return state
     
+    #
     def predict(self,mat_input,iteration,asyn=False,async_iteration=200):
         input_shape = mat_input.shape
         fig,axs = plt.subplots(1,1)
@@ -108,61 +113,3 @@ class hopfield:
     def energy(self,o):
         e = -0.5*np.matmul(np.matmul(o.T,self.W),o)
         return e
-
-def getOptions():
-    parser = argparse.ArgumentParser(description='Parses Command.')
-    parser.add_argument('-t','--train',nargs='*',help='Training data directories.')
-    parser.add_argument('-i','--iteration',type=int,help='Number of iteration.')
-    options = parser.parse_args(sys.argv[1:])
-    return options
-    
-if __name__ == '__main__':
-    np.random.seed(1)
-    options = getOptions()
-    input_shape = (32,32)
-    model = hopfield(input_shape)
-    print('Model initialized with weights shape ',model.W.shape)
-    
-    ### Training Model ###
-    for train_data in options.train:
-        print('Start training ',train_data,'...')
-        model.addTrain(train_data)
-        print(train_data,'training completed!')
-    # mat_input = np.where(np.random.rand(input_shape[0],input_shape[1])<0.5,0,1)
-    # mat_input = np.mean(plt.imread(np.random.choice(options.train)),axis=2) + np.random.uniform(-1,1,input_shape)
-    mat_input = np.mean(plt.imread(options.train[0]),axis=2) + np.random.uniform(-1,1,input_shape)
-    mat_input = np.where(mat_input < 0.5,0,1)
-    ### Update states ###
-    output_async,e_list_async = model.predict(mat_input,options.iteration,asyn=True)
-    output_sync,e_list_sync = model.predict(mat_input,options.iteration,asyn=False)
-    
-    ### Plotting Final Result###
-    fig = plt.figure(1)
-    fig.suptitle('Result with %i iteration' %options.iteration)
-    axs1 = fig.add_subplot(231)
-    axs1.set_title('Input')
-    axs1.imshow(mat_input*255,cmap='binary')
-    axs2 = fig.add_subplot(232)
-    axs2.set_title('Async Update')
-    axs2.imshow(output_async*255,cmap='binary')
-    axs3 = fig.add_subplot(233)
-    axs3.set_title('Sync Update')
-    axs3.imshow(output_sync*255,cmap='binary')
-    axs4 = fig.add_subplot(2,1,2)
-    axs4.plot(e_list_async)
-    axs4.plot(e_list_sync)
-    axs4.annotate(int(e_list_async[-1]),[len(e_list_async)-1,e_list_async[-1]])
-    axs4.annotate(int(e_list_sync[-1]),[len(e_list_sync)-1,e_list_sync[-1]])
-    axs4.set_ylabel('Energy')
-    axs4.set_xlabel('Iteration')
-    axs4.legend(['Async','Sync'])
-    axs4.grid(b=True,which='both')
-    axs4.set_xlim(0,max(len(e_list_async),len(e_list_sync))-1)
-    fig.canvas.draw_idle()
-    fig2 = plt.figure(2)
-    fig2.suptitle('Model Weights')
-    axs2 = fig2.gca()
-    axs2.imshow(model.W)
-    fig2.canvas.draw_idle()
-    plt.pause(0.5)
-    input("Press Enter to continue...")
